@@ -43,6 +43,9 @@ struct ContentView: View {
             handleDrop(providers: providers)
             return true
         }
+        .edgesIgnoringSafeArea(.top) // Removing ignoresSafeArea to use old modifier if needed, but actually standard is ignoresSafeArea. Let's use standard.
+        .ignoresSafeArea()
+        .toolbarBackground(.hidden, for: .windowToolbar)
     }
     
     private func handleDrop(providers: [NSItemProvider]) {

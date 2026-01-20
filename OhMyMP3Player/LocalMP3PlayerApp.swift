@@ -23,6 +23,7 @@ struct LocalMP3PlayerApp: App {
                 }
         }
         .windowStyle(.automatic)
+        .windowToolbarStyle(.unified)
         .windowResizability(.contentSize)
         .commands {
             // File Menu

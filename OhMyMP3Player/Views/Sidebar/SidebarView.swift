@@ -148,7 +148,7 @@ struct SidebarView: View {
                 Spacer()
                 
                 Text(playlist.name)
-                    .font(.headline)
+                    .font(.title3)
                 
                 Spacer()
                 
@@ -285,7 +285,7 @@ struct SidebarView: View {
                 Spacer()
                 
                 Text("Trash")
-                    .font(.headline)
+                    .font(.title3)
                 
                 Spacer()
                 

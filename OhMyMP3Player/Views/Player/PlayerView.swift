@@ -21,7 +21,7 @@ struct PlayerView: View {
                     // Breadcrumb header: Playlist / Track
                     PlaylistBreadcrumbHeader(
                         playlistName: viewModel.currentPlaylist?.name,
-                        trackTitle: track.title,
+                        trackTitle: track.url.lastPathComponent,
                         onPlaylistTap: {
                             if let playlist = viewModel.currentPlaylist {
                                 onPlaylistTap?(playlist)
@@ -64,7 +64,7 @@ struct PlayerView: View {
                 emptyStateView
             }
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea(edges: .top))
     }
     
     private var emptyStateView: some View {

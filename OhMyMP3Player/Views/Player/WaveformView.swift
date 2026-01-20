@@ -202,31 +202,33 @@ struct PlaylistBreadcrumbHeader: View {
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "book.fill")
-                            .font(.caption)
+                            .font(.body)
                         Text(playlistName)
+                            .font(.headline)
                     }
                     .foregroundStyle(Color.accentColor)
                 }
                 .buttonStyle(.plain)
                 
                 Text("/")
+                    .font(.headline)
                     .foregroundStyle(.tertiary)
             }
             
             // Track title with icon
             HStack(spacing: 4) {
                 Image(systemName: "music.note")
-                    .font(.caption)
+                    .font(.body)
                     .foregroundStyle(.secondary)
                 Text(trackTitle)
-                    .font(.headline)
+                    .font(.title3)
                     .lineLimit(1)
             }
             
             Spacer()
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+        .padding(.horizontal)
+        .padding(.vertical, 8)
     }
 }
 
