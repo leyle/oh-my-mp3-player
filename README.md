@@ -13,6 +13,14 @@ A beautiful, native macOS audio player built with SwiftUI. Features a waveform v
 - Loop modes: Off, Single Track, All Tracks
 - Keyboard shortcuts (Space for play/pause, arrows for seek)
 
+### 📝 Smart Transcription
+- **Interactive Transcripts**: Turn any audio track into text with a single click.
+- **Click-to-Seek**: Click on any specific word in the transcript to jump the player exactly to that moment.
+- **Live Highlighting**: Follow along with word-by-word highlighting in real-time (Voice Memos style).
+- **On-Device & Private**: Uses native macOS speech recognition (fully offline capable).
+- **Smart Caching**: Transcriptions are cached locally, so they load instantly next time.
+- **Regenerate**: Option to refresh/regenerate transcripts if needed.
+
 ### 📁 Multi-Playlist Management
 - Create, rename, and delete playlists
 - Drag-to-reorder tracks in Edit mode
