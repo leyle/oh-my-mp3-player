@@ -9,15 +9,22 @@ import SwiftUI
 
 struct ProgressSliderView: View {
     @EnvironmentObject var viewModel: AudioPlayerViewModel
+    @ObservedObject var progress: PlaybackProgress
+    
     @State private var isDragging = false
     @State private var dragProgress: Double = 0
     
+    private var currentProgress: Double {
+        guard progress.duration > 0 else { return 0 }
+        return progress.currentTime / progress.duration
+    }
+    
     private var displayProgress: Double {
-        isDragging ? dragProgress : viewModel.progress
+        isDragging ? dragProgress : currentProgress
     }
     
     private var displayTime: TimeInterval {
-        isDragging ? dragProgress * viewModel.duration : viewModel.currentTime
+        isDragging ? dragProgress * progress.duration : progress.currentTime
     }
     
     var body: some View {
@@ -70,7 +77,7 @@ struct ProgressSliderView: View {
                 
                 Spacer()
                 
-                Text(formatTime(viewModel.duration))
+                Text(formatTime(progress.duration))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
@@ -90,7 +97,7 @@ struct ProgressSliderView: View {
 }
 
 #Preview {
-    ProgressSliderView()
+    ProgressSliderView(progress: PlaybackProgress())
         .environmentObject(AudioPlayerViewModel())
         .padding()
         .frame(width: 400)

@@ -9,7 +9,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ContentView: View {
-    @EnvironmentObject var viewModel: AudioPlayerViewModel
+    var viewModel: AudioPlayerViewModel
     @StateObject private var playlistManager = PlaylistManager.shared
     @State private var columnVisibility = NavigationSplitViewVisibility.all
     @State private var sidebarNavigationPlaylist: Playlist?
@@ -75,6 +75,6 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    ContentView(viewModel: AudioPlayerViewModel())
         .environmentObject(AudioPlayerViewModel())
 }

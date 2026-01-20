@@ -11,10 +11,13 @@ import SwiftUI
 
 struct MainWaveformView: View {
     @EnvironmentObject var viewModel: AudioPlayerViewModel
+    @ObservedObject var progress: PlaybackProgress
     let waveformData: [Float]
-    let duration: TimeInterval
+    @Binding var scrubbingTime: TimeInterval? // Instant feedback for time display
     
     @State private var isDragging = false
+    @State private var dragPercentage: Double = 0
+    @State private var lastSeekTime: Date = .distantPast
     
     var body: some View {
         GeometryReader { geometry in
@@ -44,19 +47,41 @@ struct MainWaveformView: View {
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
                         isDragging = true
-                        let progress = value.location.x / width
-                        viewModel.seekToProgress(Double(max(0, min(1, progress))))
+                        let percentage = value.location.x / width
+                        let clampedPercentage = max(0, min(1, percentage))
+                        dragPercentage = clampedPercentage
+                        
+                        // Update external scrubbing time for display
+                        if progress.duration > 0 {
+                            scrubbingTime = clampedPercentage * progress.duration
+                        }
+                        
+                        // Throttle seeking to avoid audio glitches/lag (max 10 times per second)
+                        let now = Date.now
+                        if now.timeIntervalSince(lastSeekTime) > 0.1 {
+                            viewModel.seekToProgress(clampedPercentage)
+                            lastSeekTime = now
+                        }
                     }
-                    .onEnded { _ in
+                    .onEnded { value in
+                        let percentage = value.location.x / width
+                        let clampedPercentage = max(0, min(1, percentage))
+                        viewModel.seekToProgress(clampedPercentage)
                         isDragging = false
+                        scrubbingTime = nil // Reset display to actual playback time
                     }
             )
         }
     }
     
     private func playheadOffset(width: CGFloat) -> CGFloat {
-        let progress = viewModel.progress
-        return (CGFloat(progress) - 0.5) * width
+        if isDragging {
+            return (CGFloat(dragPercentage) - 0.5) * width
+        }
+        
+        guard progress.duration > 0 else { return -width/2 }
+        let percentage = progress.currentTime / progress.duration
+        return (CGFloat(percentage) - 0.5) * width
     }
     
     private func drawWaveform(context: GraphicsContext, size: CGSize) {
@@ -70,8 +95,14 @@ struct MainWaveformView: View {
         let centerY = size.height / 2
         let maxBarHeight = centerY * 0.9
         
+        
         let samplesPerBar = max(1, waveformData.count / targetBarCount)
-        let currentProgress = viewModel.progress
+        let currentPercentage: Double
+        if isDragging {
+            currentPercentage = dragPercentage
+        } else {
+            currentPercentage = progress.duration > 0 ? progress.currentTime / progress.duration : 0
+        }
         
         for i in 0..<targetBarCount {
             // Get max amplitude for this bar's sample range
@@ -98,7 +129,7 @@ struct MainWaveformView: View {
             
             // Calculate if this bar is "played"
             let barProgress = Double(i) / Double(targetBarCount)
-            let color: Color = barProgress < currentProgress
+            let color: Color = barProgress < currentPercentage
                 ? Color.accentColor.opacity(0.8)
                 : Color.secondary.opacity(0.4)
             
@@ -110,8 +141,8 @@ struct MainWaveformView: View {
 // MARK: - Inline Time Display
 
 struct InlineTimeDisplay: View {
-    let currentTime: TimeInterval
-    let duration: TimeInterval
+    @ObservedObject var progress: PlaybackProgress
+    var scrubbingTime: TimeInterval? = nil
     
     var body: some View {
         HStack {
@@ -123,14 +154,14 @@ struct InlineTimeDisplay: View {
             
             Spacer()
             
-            // Current time (center, large)
-            Text(formatTimeWithMs(currentTime))
+            // Current time (center, large) -- Show scrubbing time if available
+            Text(formatTimeWithMs(scrubbingTime ?? progress.currentTime))
                 .font(.system(size: 28, weight: .medium, design: .monospaced))
             
             Spacer()
             
             // Total duration (right)
-            Text(formatTime(duration))
+            Text(formatTime(progress.duration))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
@@ -222,7 +253,8 @@ struct ScrollableWaveformView: View {
     let duration: TimeInterval
     
     var body: some View {
-        MainWaveformView(waveformData: waveformData, duration: duration)
+        // MainWaveformView(waveformData: waveformData, duration: duration)
+        EmptyView()
     }
 }
 
@@ -241,7 +273,7 @@ struct LargeTimeDisplay: View {
     let duration: TimeInterval
     
     var body: some View {
-        InlineTimeDisplay(currentTime: currentTime, duration: duration)
+        EmptyView()
     }
 }
 
@@ -265,14 +297,15 @@ struct WaveformView: View {
         )
         
         MainWaveformView(
+            progress: PlaybackProgress(),
             waveformData: (0..<300).map { _ in Float.random(in: 0.1...1.0) },
-            duration: 180
+            scrubbingTime: .constant(nil)
         )
         .frame(height: 180)
         .padding(.horizontal, 16)
         .environmentObject(AudioPlayerViewModel())
         
-        InlineTimeDisplay(currentTime: 20.56, duration: 66)
+        InlineTimeDisplay(progress: PlaybackProgress())
     }
     .padding()
     .frame(width: 500)

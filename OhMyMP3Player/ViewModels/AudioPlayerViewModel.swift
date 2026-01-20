@@ -9,6 +9,13 @@ import Foundation
 import SwiftUI
 import Combine
 
+/// Object to hold high-frequency playback progress data
+@MainActor
+class PlaybackProgress: ObservableObject {
+    @Published var currentTime: TimeInterval = 0
+    @Published var duration: TimeInterval = 0
+}
+
 /// Main view model for the audio player
 @MainActor
 class AudioPlayerViewModel: ObservableObject {
@@ -20,8 +27,8 @@ class AudioPlayerViewModel: ObservableObject {
     @Published var currentTrackIndex: Int?
     
     @Published var playbackState: PlaybackState = .stopped
-    @Published var currentTime: TimeInterval = 0
-    @Published var duration: TimeInterval = 0
+    // currentTime and duration are now in progress object
+    let progress = PlaybackProgress()
     
     @Published var playbackRate: Float = 1.0
     @Published var loopMode: LoopMode = .none
@@ -42,10 +49,9 @@ class AudioPlayerViewModel: ObservableObject {
         playbackState == .playing
     }
     
-    var progress: Double {
-        guard duration > 0 else { return 0 }
-        return currentTime / duration
-    }
+    // Convenience for legacy access, but won't trigger view updates on self
+    var currentTime: TimeInterval { progress.currentTime }
+    var duration: TimeInterval { progress.duration }
     
     var hasNextTrack: Bool {
         guard let index = currentTrackIndex else { return false }
@@ -98,14 +104,15 @@ class AudioPlayerViewModel: ObservableObject {
                 try? audioService.load(url: track.url)
                 currentTrack = track
                 currentTrackIndex = savedIndex
-                duration = audioService.duration
+                progress.duration = audioService.duration
                 
                 // Find which playlist this track belongs to
                 currentPlaylist = PlaylistManager.shared.playlist(containingTrack: track.url)
                 
                 let savedTime = persistenceService.loadCurrentTime()
-                if savedTime > 0 && savedTime < duration {
+                if savedTime > 0 && savedTime < progress.duration {
                     audioService.seek(to: savedTime)
+                    progress.currentTime = savedTime
                 }
                 // Do NOT play - just restore position
             }
@@ -117,7 +124,7 @@ class AudioPlayerViewModel: ObservableObject {
         let urls = playlist.map { $0.url }
         persistenceService.savePlaylist(urls: urls)
         persistenceService.saveCurrentTrackIndex(currentTrackIndex)
-        persistenceService.saveCurrentTime(currentTime)
+        persistenceService.saveCurrentTime(progress.currentTime)
         persistenceService.savePlaybackRate(playbackRate)
         persistenceService.saveLoopMode(loopMode)
     }
@@ -132,8 +139,8 @@ class AudioPlayerViewModel: ObservableObject {
             title: track.title,
             artist: track.artist,
             album: track.album,
-            duration: duration,
-            currentTime: currentTime,
+            duration: progress.duration,
+            currentTime: progress.currentTime,
             isPlaying: isPlaying,
             artwork: track.artwork
         )
@@ -146,14 +153,9 @@ class AudioPlayerViewModel: ObservableObject {
                 self?.playbackState = isPlaying ? .playing : .paused
             }
             .store(in: &cancellables)
-        
-        audioService.$currentTime
-            .receive(on: DispatchQueue.main)
-            .assign(to: &$currentTime)
-        
-        audioService.$duration
-            .receive(on: DispatchQueue.main)
-            .assign(to: &$duration)
+            
+        // Note: we don't bind currentTime/duration from audioService here anymore
+        // because we handle it in delegate callbacks more efficiently
     }
     
     // MARK: - Playlist Management
@@ -228,8 +230,8 @@ class AudioPlayerViewModel: ObservableObject {
         currentTrack = nil
         currentTrackIndex = nil
         playbackState = .stopped
-        currentTime = 0
-        duration = 0
+        progress.currentTime = 0
+        progress.duration = 0
     }
     
     /// Select and play a track
@@ -283,7 +285,7 @@ class AudioPlayerViewModel: ObservableObject {
             try audioService.load(url: track.url)
             currentTrack = track
             currentTrackIndex = playlist.firstIndex(of: track)
-            duration = audioService.duration
+            progress.duration = audioService.duration
             audioService.setRate(playbackRate)
             audioService.play()
             updateNowPlaying()
@@ -325,7 +327,7 @@ class AudioPlayerViewModel: ObservableObject {
     /// Play the previous track
     func previousTrack() {
         // If we're more than 3 seconds in, restart the current track
-        if currentTime > 3 {
+        if progress.currentTime > 3 {
             seek(to: 0)
             return
         }
@@ -343,8 +345,8 @@ class AudioPlayerViewModel: ObservableObject {
     }
     
     /// Seek to a progress percentage (0.0 to 1.0)
-    func seekToProgress(_ progress: Double) {
-        let time = progress * duration
+    func seekToProgress(_ percentage: Double) {
+        let time = percentage * progress.duration
         seek(to: time)
     }
     
@@ -393,8 +395,8 @@ extension AudioPlayerViewModel: AudioServiceDelegate {
     
     nonisolated func audioServiceDidUpdateTime(currentTime: TimeInterval, duration: TimeInterval) {
         Task { @MainActor in
-            self.currentTime = currentTime
-            self.duration = duration
+            self.progress.currentTime = currentTime
+            self.progress.duration = duration
             // Update Now Playing every 5 seconds to avoid excessive updates
             if Int(currentTime) % 5 == 0 {
                 updateNowPlaying()
@@ -422,3 +424,4 @@ extension AudioPlayerViewModel: AudioServiceDelegate {
         }
     }
 }
+

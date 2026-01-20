@@ -12,6 +12,8 @@ struct PlayerView: View {
     @EnvironmentObject var viewModel: AudioPlayerViewModel
     var onPlaylistTap: ((Playlist) -> Void)?
     
+    @State private var scrubbingTime: TimeInterval? // Track scrubbing time for instant feedback
+    
     var body: some View {
         GeometryReader { geometry in
             if let track = viewModel.currentTrack {
@@ -33,16 +35,17 @@ struct PlayerView: View {
                     VStack(spacing: 0) {
                         // Single large waveform - fills available space
                         MainWaveformView(
+                            progress: viewModel.progress,
                             waveformData: track.waveformData,
-                            duration: viewModel.duration
+                            scrubbingTime: $scrubbingTime
                         )
                         .padding(.horizontal, 16)
                         .padding(.top, 16)
                         
                         // Inline time display: 0:00 — current — duration
                         InlineTimeDisplay(
-                            currentTime: viewModel.currentTime,
-                            duration: viewModel.duration
+                            progress: viewModel.progress,
+                            scrubbingTime: scrubbingTime
                         )
                         .padding(.top, 12)
                         .padding(.bottom, 16)

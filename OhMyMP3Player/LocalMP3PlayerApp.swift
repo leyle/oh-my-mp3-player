@@ -15,7 +15,7 @@ struct LocalMP3PlayerApp: App {
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(viewModel: viewModel)
                 .environmentObject(viewModel)
                 .frame(minWidth: 800, minHeight: 600)
                 .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in

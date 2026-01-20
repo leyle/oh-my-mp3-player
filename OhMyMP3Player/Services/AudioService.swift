@@ -86,6 +86,7 @@ class AudioService: NSObject, ObservableObject {
         let clampedTime = max(0, min(time, duration))
         player.currentTime = clampedTime
         currentTime = clampedTime
+        delegate?.audioServiceDidUpdateTime(currentTime: currentTime, duration: duration)
     }
     
     /// Seek forward by a number of seconds
