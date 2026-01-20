@@ -192,6 +192,7 @@ struct PlaylistBreadcrumbHeader: View {
     let playlistName: String?
     let trackTitle: String
     let onPlaylistTap: (() -> Void)?
+    @Binding var isTranscriptMode: Bool
     
     var body: some View {
         HStack(spacing: 8) {
@@ -226,6 +227,17 @@ struct PlaylistBreadcrumbHeader: View {
             }
             
             Spacer()
+            
+            // Transcription Toggle
+            Button {
+                isTranscriptMode.toggle()
+            } label: {
+                Image(systemName: isTranscriptMode ? "quote.bubble.fill" : "quote.bubble")
+                    .font(.title3)
+                    .foregroundStyle(isTranscriptMode ? Color.accentColor : Color.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Show Transcription")
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
@@ -242,7 +254,8 @@ struct CompactTrackHeader: View {
         PlaylistBreadcrumbHeader(
             playlistName: nil,
             trackTitle: title,
-            onPlaylistTap: nil
+            onPlaylistTap: nil,
+            isTranscriptMode: .constant(false)
         )
     }
 }

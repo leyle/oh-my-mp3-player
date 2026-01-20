@@ -36,12 +36,16 @@ class AudioPlayerViewModel: ObservableObject {
     @Published var isLoadingTrack: Bool = false
     @Published var currentPlaylist: Playlist?  // Which playlist the current track belongs to
     
+    @Published var transcriptionState: TranscriptionStatus = .idle
+    
     // MARK: - Services
     
     private let audioService = AudioService()
     private let nowPlayingService = NowPlayingService.shared
     private let persistenceService = PersistenceService.shared
     private var cancellables = Set<AnyCancellable>()
+    
+    private var transcriptionTask: Task<Void, Never>?
     
     // MARK: - Computed Properties
     
@@ -283,6 +287,15 @@ class AudioPlayerViewModel: ObservableObject {
         
         do {
             try audioService.load(url: track.url)
+            
+            // Reset transcription state for new track
+            if currentTrack?.id != track.id {
+                transcriptionState = .idle
+                // We could also explicitly cancel the service, but the service handles new concurrent requests?
+                // Actually, we should cancel the old one.
+                Task { await TranscriptionService.shared.cancel() }
+            }
+            
             currentTrack = track
             currentTrackIndex = playlist.firstIndex(of: track)
             progress.duration = audioService.duration
@@ -381,6 +394,62 @@ class AudioPlayerViewModel: ObservableObject {
     /// Set specific loop mode
     func setLoopMode(_ mode: LoopMode) {
         loopMode = mode
+    }
+    
+    // MARK: - Transcription
+    
+    private func cancelTranscription() {
+        transcriptionTask?.cancel()
+        transcriptionTask = nil
+        Task { await TranscriptionService.shared.cancel() }
+    }
+    
+    func startTranscription() {
+        guard let track = currentTrack else { return }
+        
+        // specific check to avoid restarting if already done or doing
+        switch transcriptionState {
+        case .transcribing, .completed:
+            return
+        default:
+            break
+        }
+        
+        transcriptionState = .transcribing(segments: [])
+        
+        transcriptionTask = Task {
+            do {
+                let stream = await TranscriptionService.shared.transcribe(url: track.url)
+                for try await segments in stream {
+                    await MainActor.run {
+                        self.transcriptionState = .transcribing(segments: segments)
+                    }
+                }
+                
+                if case .transcribing(let segments) = transcriptionState {
+                     self.transcriptionState = .completed(segments: segments)
+                }
+            } catch {
+                await MainActor.run {
+                    self.transcriptionState = .error(error.localizedDescription)
+                }
+            }
+        }
+    }
+    
+    func regenerateTranscription() {
+        guard let track = currentTrack else { return }
+        
+        cancelTranscription()
+        
+        Task {
+            await TranscriptionService.shared.deleteCache(for: track.url)
+            
+            await MainActor.run {
+                self.transcriptionState = .idle
+                self.startTranscription()
+            }
+        }
     }
 }
 
